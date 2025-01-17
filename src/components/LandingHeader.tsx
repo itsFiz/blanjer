@@ -21,12 +21,37 @@ const BlanjerHeader = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeModule, setActiveModule] = useState<string | null>(null);
+  const [expandedMobileModules, setExpandedMobileModules] = useState<string[]>([]);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      if (isMobileMenuOpen) return; // Prevent scroll effect when menu is open
+      setIsScrolled(window.scrollY > 20);
+    };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [isMobileMenuOpen]);
+
+  // Toggle mobile module expansion
+  const toggleMobileModule = (key: string) => {
+    setExpandedMobileModules(prev => 
+      prev.includes(key) 
+        ? prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  };
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileMenuOpen]);
 
   const modules = {
     
@@ -84,8 +109,6 @@ const BlanjerHeader = () => {
         description: "Learn more about us",
         href: "/about",
         features: [
-          { name: "Blog", description: "Read our latest updates", href: "/about/blog" },
-          { name: "Career", description: "Join our team", href: "/about/career" },
           { name: "About Us", description: "Our story", href: "/about/story" },
           { name: "Our Team", description: "Meet the team", href: "/about/team" },
           { name: "Contact Us", description: "Get in touch", href: "/about/contact" },
@@ -93,6 +116,27 @@ const BlanjerHeader = () => {
           { name: "Corporate Partnerships", description: "Work with us", href: "/about/partnerships" }
         ]
       },
+    pricing: {
+      icon: Wallet,
+      title: "Pricing",
+      description: "Simple, transparent pricing",
+      href: "/pricing",
+      features: []
+    },
+    blog: {
+      icon: LineChart,
+      title: "Blog",
+      description: "Read our latest updates",
+      href: "/blog",
+      features: []
+    },
+    career: {
+      icon: Plane,
+      title: "Career",
+      description: "Join our team",
+      href: "/career",
+      features: []
+    }
   };
 
   return (
@@ -105,9 +149,11 @@ const BlanjerHeader = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
-              Blanjer
-            </span>
+            <a href="/">
+              <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
+                Blanjer
+              </span>
+            </a>
           </div>
 
           {/* Desktop Navigation */}
@@ -118,17 +164,27 @@ const BlanjerHeader = () => {
                   const Icon = module.icon;
                   return (
                     <NavigationMenuItem key={key} className="group">
-                      <NavigationMenuTrigger 
-                        className="text-zinc-400 hover:text-white group-hover:bg-zinc-800/50"
-                        onClick={() => setActiveModule(activeModule === key ? null : key)}
-                      >
-                        <div className="flex items-center">
+                      {module.features.length > 0 ? (
+                        <NavigationMenuTrigger 
+                          className="text-zinc-400 hover:text-white group-hover:bg-zinc-800/50"
+                          onClick={() => setActiveModule(activeModule === key ? null : key)}
+                        >
+                          <div className="flex items-center">
+                            <Icon className="w-4 h-4 mr-2" />
+                            {module.title}
+                          </div>
+                        </NavigationMenuTrigger>
+                      ) : (
+                        <a
+                          href={module.href}
+                          className="flex items-center px-4 py-2 text-zinc-400 hover:text-white group-hover:bg-zinc-800/50"
+                        >
                           <Icon className="w-4 h-4 mr-2" />
                           {module.title}
-                        </div>
-                      </NavigationMenuTrigger>
+                        </a>
+                      )}
                       
-                      {activeModule === key && (
+                      {activeModule === key && module.features.length > 0 && (
                         <NavigationMenuContent>
                           <div 
                             className="w-[500px] p-4 bg-zinc-900/90 backdrop-blur-xl rounded-xl border border-zinc-800 shadow-xl"
@@ -187,40 +243,95 @@ const BlanjerHeader = () => {
 
       {/* Mobile menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-black">
-          <div className="p-4 space-y-6">
-            {Object.entries(modules).map(([key, module]) => {
-              const Icon = module.icon;
-              return (
-                <div key={key} className="space-y-2">
-                  <div className="flex items-center text-lg font-medium text-white">
-                    <Icon className="w-5 h-5 mr-2" />
-                    {module.title}
-                  </div>
-                  <div className="ml-7 space-y-2">
-                    {module.features.map((feature, index) => (
-                      <a
-                        key={index}
-                        href={feature.href}
-                        className="block py-2 text-zinc-400 hover:text-white"
-                      >
-                        {feature.name}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            <div className="pt-6 border-t border-zinc-800">
-              <a href="#" className="block text-center py-2 text-zinc-400 hover:text-white">
-                Log in
-              </a>
-              <a
-                href="#"
-                className="block text-center mt-2 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+        <div className="lg:hidden">
+          <div 
+            className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 overflow-y-auto"
+            style={{ 
+              animation: 'fadeIn 0.2s ease-out',
+            }}
+          >
+            {/* Mobile Header */}
+            <div className="sticky top-0 flex items-center justify-between p-4 border-b border-zinc-800/50">
+              <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
+                Blanjer
+              </span>
+              <button
+                className="p-2 text-zinc-400 hover:text-white transition-colors"
+                onClick={() => setIsMobileMenuOpen(false)}
               >
-                Get Started
-              </a>
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Mobile Menu Content */}
+            <div className="px-4 py-6 space-y-6">
+              {Object.entries(modules).map(([key, module]) => {
+                const Icon = module.icon;
+                const isExpanded = expandedMobileModules.includes(key);
+                
+                return (
+                  <div key={key} className="space-y-4">
+                    <button
+                      onClick={() => toggleMobileModule(key)}
+                      className="flex items-center justify-between w-full text-lg font-medium text-white"
+                    >
+                      <div className="flex items-center">
+                        <Icon className="w-5 h-5 mr-2" />
+                        {module.title}
+                      </div>
+                      <svg
+                        className={`w-5 h-5 transition-transform duration-200 ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    
+                    {isExpanded && (
+                      <div className="grid grid-cols-1 gap-3 ml-7 transition-all duration-200">
+                        {module.features.map((feature, index) => (
+                          <a
+                            key={index}
+                            href={feature.href}
+                            className="flex flex-col p-3 rounded-lg bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <span className="text-white font-medium">{feature.name}</span>
+                            <span className="text-sm text-zinc-400">{feature.description}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Mobile Auth Buttons */}
+              <div className="pt-6 space-y-3">
+                <a 
+                  href="#" 
+                  className="block w-full text-center py-3 px-4 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Log in
+                </a>
+                <a
+                  href="#"
+                  className="block w-full text-center py-3 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Get Started
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -230,3 +341,16 @@ const BlanjerHeader = () => {
 };
 
 export default BlanjerHeader;
+
+<style jsx global>{`
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`}</style>
